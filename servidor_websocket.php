@@ -1,15 +1,17 @@
 <?php
-// servidor_websocket_silencioso.php
-// Versão que só alerta quando servidor cai, silencioso quando tudo está ok
+// servidor_websocket_simples.php
+// Servidor WebSocket simples sem dependências externas
 
 error_reporting(E_ALL);
 set_time_limit(0);
 
-class SilentServerMonitor {
+class SimpleWebSocketServer {
     private $clients = [];
     private $servers_to_monitor = [
-        'DietSync' => 'http://152.67.45.167',
-        // Adicione seus servidores aqui
+        'Google' => 'https://www.google.com',
+        'GitHub' => 'https://github.com',
+        'OpenAI' => 'https://openai.com',
+        'Stack Overflow' => 'https://stackoverflow.com'
     ];
     private $server_status = [];
     private $socket;
@@ -26,13 +28,8 @@ class SilentServerMonitor {
             $this->server_status[$name] = 'unknown';
         }
         
-        echo "🚀 Monitor silencioso iniciado em $host:$port\n";
-        echo "🔍 Monitorando " . count($this->servers_to_monitor) . " servidores...\n";
-        echo "⚠️  Só serão exibidos alertas quando servidores caírem\n";
-        echo "📡 Dashboard: abra monitor.html no navegador\n\n";
-        
-        // Primeira verificação para estabelecer baseline
-        $this->checkAllServersQuiet();
+        echo "🚀 Servidor WebSocket iniciado em $host:$port\n";
+        echo "📡 Aguardando conexões...\n\n";
     }
 
     public function run() {
@@ -87,7 +84,7 @@ class SilentServerMonitor {
             socket_write($client, $response);
             
             $this->clients[] = $client;
-            echo "[" . date('H:i:s') . "] 📱 Cliente conectado (" . count($this->clients) . " ativo(s))\n";
+            echo "[" . date('H:i:s') . "] Nova conexão estabelecida (" . count($this->clients) . " clientes)\n";
             
             // Enviar status inicial
             $this->sendToClient($client, [
@@ -105,6 +102,7 @@ class SilentServerMonitor {
             return;
         }
         
+        // Decodificar frame WebSocket
         $message = $this->decodeFrame($data);
         
         if ($message === false) {
@@ -114,8 +112,8 @@ class SilentServerMonitor {
         $decoded = json_decode($message, true);
         
         if (isset($decoded['action']) && $decoded['action'] === 'force_check') {
-            echo "[" . date('H:i:s') . "] 🔄 Verificação manual solicitada\n";
-            $this->checkAllServersForced();
+            echo "[" . date('H:i:s') . "] Verificação manual solicitada\n";
+            $this->checkAllServers();
         }
     }
 
@@ -124,57 +122,22 @@ class SilentServerMonitor {
         if ($key !== false) {
             unset($this->clients[$key]);
             socket_close($client);
-            echo "[" . date('H:i:s') . "] 📱 Cliente desconectado (" . count($this->clients) . " ativo(s))\n";
+            echo "[" . date('H:i:s') . "] Cliente desconectado (" . count($this->clients) . " clientes)\n";
         }
     }
 
-    // Verificação silenciosa inicial para estabelecer baseline
-    private function checkAllServersQuiet() {
-        foreach ($this->servers_to_monitor as $name => $url) {
-            $this->checkServerQuiet($name, $url);
-        }
-    }
-
-    // Verificação normal (só alerta problemas)
     private function checkAllServers() {
+        echo "[" . date('H:i:s') . "] Verificando servidores...\n";
+        
         foreach ($this->servers_to_monitor as $name => $url) {
             $this->checkServer($name, $url);
         }
     }
 
-    // Verificação forçada (mostra tudo)
-    private function checkAllServersForced() {
-        foreach ($this->servers_to_monitor as $name => $url) {
-            $this->checkServerForced($name, $url);
-        }
-    }
-
-    // Verificação silenciosa (sem logs)
-    private function checkServerQuiet($name, $url) {
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 10,
-            CURLOPT_CONNECTTIMEOUT => 5,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_USERAGENT => 'Silent Server Monitor',
-            CURLOPT_NOBODY => true
-        ]);
-        
-        $result = curl_exec($ch);
-        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        
-        $current_status = ($result !== false && $http_code >= 200 && $http_code < 400) ? 'up' : 'down';
-        $this->server_status[$name] = $current_status;
-    }
-
-    // Verificação normal - SÓ MOSTRA QUANDO CAI
     private function checkServer($name, $url) {
         $previous_status = $this->server_status[$name] ?? 'unknown';
         
+        // Verificar servidor com cURL
         $ch = curl_init();
         curl_setopt_array($ch, [
             CURLOPT_URL => $url,
@@ -183,8 +146,8 @@ class SilentServerMonitor {
             CURLOPT_CONNECTTIMEOUT => 5,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_USERAGENT => 'Silent Server Monitor',
-            CURLOPT_NOBODY => true
+            CURLOPT_USERAGENT => 'Server Monitor Bot 1.0',
+            CURLOPT_NOBODY => true // Apenas HEAD request
         ]);
         
         $start_time = microtime(true);
@@ -195,11 +158,13 @@ class SilentServerMonitor {
         $curl_error = curl_error($ch);
         curl_close($ch);
         
+        // Determinar status
         $current_status = ($result !== false && $http_code >= 200 && $http_code < 400) ? 'up' : 'down';
         
         // Atualizar status
         $this->server_status[$name] = $current_status;
         
+        // Preparar dados
         $server_data = [
             'name' => $name,
             'url' => $url,
@@ -211,104 +176,33 @@ class SilentServerMonitor {
             'status_changed' => $previous_status !== $current_status
         ];
         
-        // Enviar sempre para o dashboard (silencioso)
+        // Log
+        $status_symbol = $current_status === 'up' ? '✅' : '❌';
+        $change_indicator = $server_data['status_changed'] ? ' [MUDANÇA!]' : '';
+        echo "[" . date('H:i:s') . "] {$status_symbol} {$name}: {$current_status}";
+        if ($response_time) echo " ({$response_time}ms)";
+        echo $change_indicator . "\n";
+        
+        // Enviar para clientes
         $this->broadcast([
             'type' => 'server_update',
             'server' => $server_data
         ]);
         
-        // LOGS E ALERTAS SÓ QUANDO HOUVER PROBLEMAS:
-        
-        // 1. Servidor caiu (UP -> DOWN) - ALERTA CRÍTICO
+        // Alertas especiais
         if ($current_status === 'down' && $previous_status === 'up') {
-            echo "[" . date('H:i:s') . "] 🚨 CRÍTICO: {$name} CAIU! ({$url})\n";
-            echo "                    HTTP: {$http_code} | Erro: " . ($curl_error ?: 'Timeout/Conexão') . "\n";
-            
             $this->broadcast([
                 'type' => 'server_alert',
-                'message' => "🚨 CRÍTICO: Servidor '{$name}' CAIU!",
+                'message' => "🚨 ALERTA: Servidor '{$name}' está FORA DO AR!",
                 'server' => $server_data
             ]);
-        }
-        
-        // 2. Servidor voltou (DOWN -> UP) - RECUPERAÇÃO
-        elseif ($current_status === 'up' && $previous_status === 'down') {
-            echo "[" . date('H:i:s') . "] ✅ RECUPERADO: {$name} voltou ao ar ({$response_time}ms)\n";
-            
+        } elseif ($current_status === 'up' && $previous_status === 'down') {
             $this->broadcast([
                 'type' => 'server_recovery',
-                'message' => "✅ RECUPERADO: Servidor '{$name}' voltou!",
+                'message' => "✅ RECUPERADO: Servidor '{$name}' voltou ao ar!",
                 'server' => $server_data
             ]);
         }
-        
-        // 3. Continua down - log silencioso a cada 10 verificações (5 minutos)
-        elseif ($current_status === 'down' && $previous_status === 'down') {
-            static $down_counters = [];
-            $down_counters[$name] = ($down_counters[$name] ?? 0) + 1;
-            
-            if ($down_counters[$name] % 10 === 0) { // A cada 10 verificações (5 min)
-                $minutes = ($down_counters[$name] * 0.5); // 30s * count / 60
-                echo "[" . date('H:i:s') . "] ⚠️  {$name} continua fora do ar há {$minutes} min\n";
-            }
-        }
-        
-        // 4. Tudo OK (UP -> UP) - SILENCIOSO TOTAL
-        // Nada é exibido no console quando está tudo funcionando
-    }
-
-    // Verificação forçada - mostra status de todos
-    private function checkServerForced($name, $url) {
-        $previous_status = $this->server_status[$name] ?? 'unknown';
-        
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 10,
-            CURLOPT_CONNECTTIMEOUT => 5,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_USERAGENT => 'Silent Server Monitor (Manual)',
-            CURLOPT_NOBODY => true
-        ]);
-        
-        $start_time = microtime(true);
-        $result = curl_exec($ch);
-        $response_time = round((microtime(true) - $start_time) * 1000, 2);
-        
-        $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curl_error = curl_error($ch);
-        curl_close($ch);
-        
-        $current_status = ($result !== false && $http_code >= 200 && $http_code < 400) ? 'up' : 'down';
-        $this->server_status[$name] = $current_status;
-        
-        $server_data = [
-            'name' => $name,
-            'url' => $url,
-            'status' => $current_status,
-            'response_time' => $current_status === 'up' ? $response_time : null,
-            'http_code' => $http_code,
-            'error' => $curl_error ?: null,
-            'timestamp' => date('Y-m-d H:i:s'),
-            'status_changed' => $previous_status !== $current_status
-        ];
-        
-        // Log forçado - mostra status atual
-        $status_symbol = $current_status === 'up' ? '✅' : '❌';
-        echo "[" . date('H:i:s') . "] {$status_symbol} {$name}: {$current_status}";
-        if ($current_status === 'up') {
-            echo " ({$response_time}ms)";
-        } else {
-            echo " (HTTP: {$http_code})";
-        }
-        echo "\n";
-        
-        $this->broadcast([
-            'type' => 'server_update',
-            'server' => $server_data
-        ]);
     }
 
     private function broadcast($data) {
@@ -338,7 +232,7 @@ class SilentServerMonitor {
 
     private function encodeFrame($message) {
         $length = strlen($message);
-        $frame = chr(129);
+        $frame = chr(129); // FIN + opcode text
         
         if ($length <= 125) {
             $frame .= chr($length);
@@ -404,9 +298,9 @@ class SilentServerMonitor {
     }
 }
 
-// Iniciar servidor silencioso
+// Iniciar servidor
 try {
-    $server = new SilentServerMonitor('0.0.0.0', 8080);
+    $server = new SimpleWebSocketServer('0.0.0.0', 8080);
     $server->run();
 } catch (Exception $e) {
     echo "Erro: " . $e->getMessage() . "\n";
