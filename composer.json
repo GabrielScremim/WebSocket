@@ -1,5 +1,5 @@
 {
-    "name": "WebSocket/websocket",
+    "name": "websocket/websocket",
     "description": "Sistema de monitoramento de servidores com WebSocket",
     "type": "project",
     "require": {

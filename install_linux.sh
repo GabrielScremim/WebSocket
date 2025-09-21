@@ -104,7 +104,7 @@ setup_project() {
     print_status "Configurando estrutura do projeto..."
     
     # Criar diretório do projeto
-    PROJECT_DIR="$HOME/WebSocket"
+    PROJECT_DIR="$HOME/websocket"
     mkdir -p "$PROJECT_DIR"
     cd "$PROJECT_DIR"
     
@@ -137,7 +137,7 @@ configure_firewall() {
 create_service() {
     print_status "Criando serviço systemd..."
     
-    SERVICE_FILE="/etc/systemd/system/WebSocket.service"
+    SERVICE_FILE="/etc/systemd/system/websocket.service"
     
     sudo tee "$SERVICE_FILE" > /dev/null << EOF
 [Unit]
@@ -161,7 +161,7 @@ EOF
 
     # Configurar systemd
     sudo systemctl daemon-reload
-    sudo systemctl enable WebSocket
+    sudo systemctl enable websocket
     
     print_success "Serviço systemd criado e habilitado"
 }
@@ -219,8 +219,8 @@ EOF
 echo "🛑 Parando Sistema de Monitoramento..."
 
 # Parar serviço systemd se estiver rodando
-if systemctl is-active --quiet WebSocket; then
-    sudo systemctl stop WebSocket
+if systemctl is-active --quiet websocket; then
+    sudo systemctl stop websocket
     echo "✅ Serviço systemd parado"
 fi
 
@@ -236,7 +236,7 @@ echo "===================================="
 
 # Status do serviço
 echo "🔧 Serviço systemd:"
-systemctl is-active WebSocket && echo "  ✅ Ativo" || echo "  ❌ Inativo"
+systemctl is-active websocket && echo "  ✅ Ativo" || echo "  ❌ Inativo"
 
 # Status da porta
 echo "🌐 Porta 8080:"
@@ -343,14 +343,14 @@ main() {
     echo ""
     echo "📋 Próximos passos:"
     echo "   1. Edite $PROJECT_DIR/servidor_websocket.php para configurar os servidores"
-    echo "   2. Iniciar serviço: sudo systemctl start WebSocket"
+    echo "   2. Iniciar serviço: sudo systemctl start websocket"
     echo "   3. Abrir monitor.html no navegador"
     echo ""
     echo "🔧 Comandos úteis:"
     echo "   - Iniciar manual: $PROJECT_DIR/start.sh"
     echo "   - Parar serviço: $PROJECT_DIR/stop.sh"
     echo "   - Ver status: $PROJECT_DIR/status.sh"
-    echo "   - Ver logs: journalctl -u WebSocket -f"
+    echo "   - Ver logs: journalctl -u websocket -f"
     echo ""
     echo "🌐 WebSocket estará disponível em: ws://localhost:8080"
 }
