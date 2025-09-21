@@ -1,12 +1,12 @@
 {
-    "name": "websocket/websocket",
+    "name": "websocket/websocket-monitor",
     "description": "Sistema de monitoramento de servidores com WebSocket",
     "type": "project",
     "require": {
         "php": ">=7.4",
-        "ratchet/pawl": "^0.4",
-        "ratchet/ratchet": "^0.4",
-        "react/socket": "^1.11"
+        "ext-curl": "*",
+        "ext-json": "*",
+        "ext-sockets": "*"
     },
     "autoload": {
         "psr-4": {
