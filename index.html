@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitor de Servidores</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.connected {
+            background-color: #4CAF50;
+        }
+
+        .status-indicator.disconnected {
+            background-color: #f44336;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .controls {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+
+        .servers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .server-card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .server-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+        }
+
+        .server-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+
+        .server-name {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .server-status {
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+        }
+
+        .server-status.up {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+            border: 2px solid #4caf50;
+        }
+
+        .server-status.down {
+            background-color: #ffebee;
+            color: #c62828;
+            border: 2px solid #f44336;
+        }
+
+        .server-status.unknown {
+            background-color: #f3f3f3;
+            color: #666;
+            border: 2px solid #999;
+        }
+
+        .server-details {
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .server-url {
+            color: #1976d2;
+            text-decoration: none;
+            word-break: break-all;
+        }
+
+        .server-url:hover {
+            text-decoration: underline;
+        }
+
+        .response-time {
+            display: inline-block;
+            background: #e3f2fd;
+            color: #1565c0;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            margin-top: 5px;
+        }
+
+        .last-update {
+            color: #999;
+            font-size: 0.8rem;
+            margin-top: 10px;
+        }
+
+        .notifications {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            max-width: 400px;
+        }
+
+        .notification {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border-left: 5px solid #4CAF50;
+            animation: slideIn 0.3s ease;
+            position: relative;
+        }
+
+        .notification.alert {
+            border-left-color: #f44336;
+            background: linear-gradient(135deg, #ffebee 0%, #fff 100%);
+        }
+
+        .notification.recovery {
+            border-left-color: #4CAF50;
+            background: linear-gradient(135deg, #e8f5e8 0%, #fff 100%);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .notification-close {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 18px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .logs {
+            background: rgba(0,0,0,0.8);
+            color: #00ff00;
+            border-radius: 10px;
+            padding: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
+        }
+
+        .log-entry:hover {
+            opacity: 1;
+        }
+
+        .log-entry.new {
+            animation: highlight 2s ease;
+        }
+
+        @keyframes highlight {
+            0% { background-color: rgba(0,255,0,0.3); }
+            100% { background-color: transparent; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🖥️ Monitor de Servidores</h1>
+            <p>
+                <span class="status-indicator" id="connection-status"></span>
+                <span id="connection-text">Conectando...</span>
+            </p>
+        </div>
+
+        <div class="controls">
+            <button class="btn" onclick="forceCheck()">🔄 Verificar Agora</button>
+            <button class="btn" onclick="clearLogs()">🗑️ Limpar Logs</button>
+        </div>
+
+        <div class="servers-grid" id="servers-container">
+            <!-- Servidores serão inseridos aqui dinamicamente -->
+        </div>
+
+        <div class="logs" id="logs">
+            <div class="log-entry">💻 Sistema de monitoramento iniciado...</div>
+        </div>
+    </div>
+
+    <div class="notifications" id="notifications"></div>
+
+    <script>
+        let ws;
+        let servers = {};
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+
+        function connect() {
+            try {
+                ws = new WebSocket('ws://localhost:8080');
+                
+                ws.onopen = function(event) {
+                    console.log('Conectado ao WebSocket');
+                    updateConnectionStatus(true);
+                    reconnectAttempts = 0;
+                    addLog('✅ Conectado ao servidor de monitoramento');
+                };
+
+                ws.onmessage = function(event) {
+                    const data = JSON.parse(event.data);
+                    handleMessage(data);
+                };
+
+                ws.onclose = function(event) {
+                    console.log('WebSocket desconectado');
+                    updateConnectionStatus(false);
+                    addLog('❌ Conexão perdida com servidor de monitoramento');
+                    
+                    // Tentar reconectar
+                    if (reconnectAttempts < maxReconnectAttempts) {
+                        reconnectAttempts++;
+                        addLog(`🔄 Tentando reconectar (${reconnectAttempts}/${maxReconnectAttempts})...`);
+                        setTimeout(connect, 5000);
+                    }
+                };
+
+                ws.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    addLog('⚠️ Erro na conexão WebSocket');
+                };
+            } catch (error) {
+                console.error('Erro ao conectar:', error);
+                updateConnectionStatus(false);
+            }
+        }
+
+        function updateConnectionStatus(connected) {
+            const indicator = document.getElementById('connection-status');
+            const text = document.getElementById('connection-text');
+            
+            if (connected) {
+                indicator.className = 'status-indicator connected';
+                text.textContent = 'Conectado';
+            } else {
+                indicator.className = 'status-indicator disconnected';
+                text.textContent = 'Desconectado';
+            }
+        }
+
+        function handleMessage(data) {
+            switch (data.type) {
+                case 'initial_status':
+                    servers = data.servers;
+                    renderServers();
+                    addLog('📊 Status inicial dos servidores carregado');
+                    break;
+                
+                case 'server_update':
+                    updateServer(data.server);
+                    break;
+                
+                case 'server_alert':
+                    showNotification(data.message, 'alert');
+                    addLog(`🚨 ${data.message}`);
+                    break;
+                
+                case 'server_recovery':
+                    showNotification(data.message, 'recovery');
+                    addLog(`✅ ${data.message}`);
+                    break;
+            }
+        }
+
+        function updateServer(serverData) {
+            servers[serverData.name] = serverData.status;
+            renderServers();
+            
+            const statusIcon = serverData.status === 'up' ? '✅' : '❌';
+            const responseTime = serverData.response_time ? ` (${serverData.response_time}ms)` : '';
+            addLog(`${statusIcon} ${serverData.name}: ${serverData.status}${responseTime}`);
+        }
+
+        function renderServers() {
+            const container = document.getElementById('servers-container');
+            container.innerHTML = '';
+
+            Object.entries(servers).forEach(([name, status]) => {
+                const card = createServerCard(name, status);
+                container.appendChild(card);
+            });
+        }
+
+        function createServerCard(name, status) {
+            const card = document.createElement('div');
+            card.className = 'server-card';
+            
+            const statusClass = status === 'up' ? 'up' : status === 'down' ? 'down' : 'unknown';
+            const statusText = status === 'up' ? 'Online' : status === 'down' ? 'Offline' : 'Desconhecido';
+            
+            card.innerHTML = `
+                <div class="server-header">
+                    <div class="server-name">${name}</div>
+                    <div class="server-status ${statusClass}">${statusText}</div>
+                </div>
+                <div class="server-details">
+                    <div>Status: ${statusText}</div>
+                    <div class="last-update">Última atualização: ${new Date().toLocaleString()}</div>
+                </div>
+            `;
+            
+            return card;
+        }
+
+        function showNotification(message, type = 'info') {
+            const container = document.getElementById('notifications');
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            
+            notification.innerHTML = `
+                <button class="notification-close" onclick="this.parentElement.remove()">×</button>
+                <div>${message}</div>
+            `;
+            
+            container.appendChild(notification);
+            
+            // Auto-remover após 10 segundos
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 10000);
+        }
+
+        function addLog(message) {
+            const logs = document.getElementById('logs');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry new';
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            
+            logs.appendChild(entry);
+            logs.scrollTop = logs.scrollHeight;
+            
+            // Remove classe 'new' após a animação
+            setTimeout(() => entry.classList.remove('new'), 2000);
+            
+            // Limita o número de logs
+            const entries = logs.querySelectorAll('.log-entry');
+            if (entries.length > 100) {
+                entries[0].remove();
+            }
+        }
+
+        function forceCheck() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({action: 'force_check'}));
+                addLog('🔄 Verificação manual solicitada');
+            }
+        }
+
+        function clearLogs() {
+            const logs = document.getElementById('logs');
+            logs.innerHTML = '<div class="log-entry">📝 Logs limpos</div>';
+        }
+
+        // Iniciar conexão
+        connect();
+
+        // Notificações do navegador (opcional)
+        if ('Notification' in window) {
+            Notification.requestPermission();
+        }
+    </script>
+</body>
+</html>
