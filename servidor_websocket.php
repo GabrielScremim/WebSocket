@@ -8,10 +8,7 @@ set_time_limit(0);
 class SilentServerMonitor {
     private $clients = [];
     private $servers_to_monitor = [
-        'Google' => 'https://www.google.com',
-        'GitHub' => 'https://github.com',
-        'OpenAI' => 'https://openai.com',
-        'Stack Overflow' => 'https://stackoverflow.com'
+        'DietSync' => 'http://152.67.45.167',
         // Adicione seus servidores aqui
     ];
     private $server_status = [];
